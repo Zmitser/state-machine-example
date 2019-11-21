@@ -15,14 +15,12 @@ internal class StateMachineConfigTest(@Autowired val factory: StateMachineFactor
     @Test
     fun testNewStateMachine() {
         val stateMachine = factory.stateMachine
+
         stateMachine.start()
-        println(stateMachine.state)
 
         stateMachine.sendEvent(PRE_AUTHORIZE)
-        println(stateMachine.state)
 
         stateMachine.sendEvent(PRE_AUTH_APPROVED)
-        println(stateMachine.state)
     }
 
 }
