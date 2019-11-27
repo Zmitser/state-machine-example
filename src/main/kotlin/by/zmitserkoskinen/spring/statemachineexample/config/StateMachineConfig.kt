@@ -6,20 +6,23 @@ import by.zmitserkoskinen.spring.statemachineexample.domain.PaymentStatus
 import by.zmitserkoskinen.spring.statemachineexample.domain.PaymentStatus.*
 import mu.KotlinLogging
 import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.support.MessageBuilder
+import org.springframework.statemachine.action.Action
 import org.springframework.statemachine.config.EnableStateMachineFactory
-import org.springframework.statemachine.config.EnumStateMachineConfigurerAdapter
+import org.springframework.statemachine.config.StateMachineConfigurerAdapter
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer
 import org.springframework.statemachine.listener.StateMachineListenerAdapter
 import org.springframework.statemachine.state.State
 import java.util.*
+import kotlin.random.Random
+
 
 @EnableStateMachineFactory
 @Configuration
-class StateMachineConfig : EnumStateMachineConfigurerAdapter<PaymentStatus, PaymentEvent>() {
-
-
+class StateMachineConfig : StateMachineConfigurerAdapter<PaymentStatus, PaymentEvent>() {
+    private val PAYMENT_ID_HEADER = "paymentId"
 
     override fun configure(states: StateMachineStateConfigurer<PaymentStatus, PaymentEvent>?) {
         states?.withStates()
@@ -32,6 +35,7 @@ class StateMachineConfig : EnumStateMachineConfigurerAdapter<PaymentStatus, Paym
 
     override fun configure(transitions: StateMachineTransitionConfigurer<PaymentStatus, PaymentEvent>?) {
         transitions?.withExternal()?.source(NEW)?.target(NEW)?.event(PRE_AUTHORIZE)
+                ?.action(preAuthAction())
                 ?.and()
                 ?.withExternal()?.source(NEW)?.target(PRE_AUTH)?.event(PRE_AUTH_APPROVED)
                 ?.and()
@@ -49,7 +53,25 @@ class StateMachineConfig : EnumStateMachineConfigurerAdapter<PaymentStatus, Paym
         private val log = KotlinLogging.logger { }
 
         override fun stateChanged(from: State<PaymentStatus, PaymentEvent>?, to: State<PaymentStatus, PaymentEvent>?) {
-           log.info("State Changed from $from to $to")
+            log.info("State Changed from $from to $to")
+        }
+    }
+
+
+    fun preAuthAction(): Action<PaymentStatus, PaymentEvent> {
+        return Action {
+            println("PreAuth was called!!!")
+            if (Random.nextInt(20) > 8) {
+                println("Approved")
+                it.stateMachine.sendEvent(MessageBuilder.withPayload(PaymentEvent.PRE_AUTH_APPROVED)
+                        .setHeader(PAYMENT_ID_HEADER, it.getMessageHeader(PAYMENT_ID_HEADER))
+                        .build())
+            } else {
+                println("Declined! No Credit!!!!!!");
+                it.stateMachine.sendEvent(MessageBuilder.withPayload(PaymentEvent.PRE_AUTH_DECLINED)
+                        .setHeader(PAYMENT_ID_HEADER, it.getMessageHeader(PAYMENT_ID_HEADER))
+                        .build())
+            }
         }
     }
 }

@@ -8,13 +8,15 @@ import by.zmitserkoskinen.spring.statemachineexample.domain.PaymentStatus.NEW
 import by.zmitserkoskinen.spring.statemachineexample.repository.PaymentRepository
 import org.springframework.messaging.support.MessageBuilder
 import org.springframework.statemachine.StateMachine
+import org.springframework.statemachine.action.Action
 import org.springframework.statemachine.config.StateMachineFactory
 import org.springframework.statemachine.support.DefaultStateMachineContext
 import org.springframework.stereotype.Service
 
 @Service
 class PaymentServiceImpl(private val repository: PaymentRepository,
-                         private val factory: StateMachineFactory<PaymentStatus, PaymentEvent>) : PaymentService {
+                         private val factory: StateMachineFactory<PaymentStatus, PaymentEvent>,
+                         private val listener: PaymentStateChangeListener) : PaymentService {
 
     private val PAYMENT_ID_HEADER = "paymentId"
 
@@ -26,21 +28,20 @@ class PaymentServiceImpl(private val repository: PaymentRepository,
     override fun preAuth(id: Long): StateMachine<PaymentStatus, PaymentEvent> {
         val stateMachine = build(id)
         sendEvent(id, stateMachine, PRE_AUTHORIZE)
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return stateMachine
     }
 
     override fun authorize(id: Long): StateMachine<PaymentStatus, PaymentEvent> {
         val stateMachine = build(id)
         sendEvent(id, stateMachine, AUTH_APPROVED)
-
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return stateMachine
     }
 
     override fun decline(id: Long): StateMachine<PaymentStatus, PaymentEvent> {
         val stateMachine = build(id)
         sendEvent(id, stateMachine, AUTH_DECLINED)
 
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return stateMachine
     }
 
 
@@ -60,6 +61,7 @@ class PaymentServiceImpl(private val repository: PaymentRepository,
         stateMachine.stop()
 
         stateMachine.stateMachineAccessor.doWithAllRegions {
+            it.addStateMachineInterceptor(listener)
             it.resetStateMachine(DefaultStateMachineContext<PaymentStatus, PaymentEvent>(state, null, null, null))
         }
 
@@ -68,4 +70,5 @@ class PaymentServiceImpl(private val repository: PaymentRepository,
         return stateMachine
 
     }
+
 }
